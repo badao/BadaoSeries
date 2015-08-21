@@ -32,7 +32,17 @@ namespace BadaoSeries.CustomOrbwalker
             Combo,
             None
         }
-
+        // Buffs that disable attack and movement
+        public static readonly BuffType[] DisableBuff =
+        {
+            BuffType.Charm,
+            BuffType.Fear,
+            BuffType.Stun,
+            BuffType.Knockup,
+            BuffType.Knockup,
+            BuffType.Taunt,
+            BuffType.Suppression
+        };
         //Spells that reset the attack timer.
         private static readonly string[] AttackResets =
         {
@@ -221,7 +231,8 @@ namespace BadaoSeries.CustomOrbwalker
         /// </summary>
         public static bool CanAttack()
         {
-            return Utils.GameTimeTickCount + Game.Ping / 2 + 25 >= LastAATick + Player.AttackDelay * 1000 && Attack;
+            return Utils.GameTimeTickCount + Game.Ping / 2 + 25 >= LastAATick + Player.AttackDelay * 1000 && Attack
+                && !DisableBuff.Where(x => Player.HasBuffOfType(x)).Any() && !Player.IsDashing();
         }
 
         /// <summary>

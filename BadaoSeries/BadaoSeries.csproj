@@ -58,6 +58,7 @@
     <Compile Include="CustomOrbwalker\FakeClicks.cs" />
     <Compile Include="CustomOrbwalker\Helper.cs" />
     <Compile Include="CustomOrbwalker\Orbwalker.cs" />
+    <Compile Include="Plugin\Syndra.cs" />
     <Compile Include="Plugin\TwistedFate.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

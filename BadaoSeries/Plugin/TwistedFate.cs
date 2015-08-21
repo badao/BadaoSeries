@@ -301,11 +301,11 @@ namespace BadaoSeries.Plugin
                 IDictionary<Obj_AI_Minion, int> creeps = new Dictionary<Obj_AI_Minion, int>();
                 foreach (var x in ObjectManager.Get<Obj_AI_Minion>().Where(x => x.Team != Player.Team && x.Team != GameObjectTeam.Neutral  && Orbwalking.InAutoAttackRange(x)))
                 {
-                    creeps.Add(x, ObjectManager.Get<Obj_AI_Minion>().Where(y => y.Team != Player.Team && y.Team != GameObjectTeam.Neutral && y.IsValidTarget() && y.Distance(x.Position) <= 300).Count());
+                    creeps.Add(x, ObjectManager.Get<Obj_AI_Minion>().Count(y => y.Team != Player.Team && y.Team != GameObjectTeam.Neutral && y.IsValidTarget() && y.Distance(x.Position) <= 300));
                 }
                 foreach (var x in ObjectManager.Get<Obj_AI_Minion>().Where(x => x.Team == GameObjectTeam.Neutral && Orbwalking.InAutoAttackRange(x)))
                 {
-                    creeps.Add(x, ObjectManager.Get<Obj_AI_Minion>().Where(y => y.Team == GameObjectTeam.Neutral && y.IsValidTarget() && y.Distance(x.Position) <= 300).Count());
+                    creeps.Add(x, ObjectManager.Get<Obj_AI_Minion>().Count(y => y.Team == GameObjectTeam.Neutral && y.IsValidTarget() && y.Distance(x.Position) <= 300));
                 }
                 var minion = creeps.OrderByDescending(x => x.Value).FirstOrDefault();
                 Player.IssueOrder(GameObjectOrder.AttackUnit, minion.Key);
@@ -395,7 +395,7 @@ namespace BadaoSeries.Plugin
                             if (GoldCard && !(dontbeobvious && isobvious))
                                 W.Cast();
                         }
-                        else if (HeroManager.Allies.Where(x => x.IsValidTarget(800, false)).Any())
+                        else if (HeroManager.Allies.Any(x => x.IsValidTarget(800, false)))
                         {
                             if (GoldCard && !(dontbeobvious && isobvious))
                                 W.Cast();
@@ -549,11 +549,8 @@ namespace BadaoSeries.Plugin
         }
         private static void checkbuff()
         {
-            var temp = "";
-            foreach (var buff in Player.Buffs)
-            {
-                temp += ("( " + buff.Name + " , " + buff.Count + " )");
-            }
+            var temp = Player.Buffs.Aggregate("", (current, buff) => current + ("( " + buff.Name + " , " + buff.Count + " )"));
+            if (temp != null)
             Game.PrintChat(temp);
         }
     }
