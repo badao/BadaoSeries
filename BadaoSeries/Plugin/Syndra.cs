@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Resources;
@@ -245,6 +245,11 @@ namespace BadaoSeries.Plugin
                 Bool(Combo, "Ec", "E", true);
                 Bool(Combo, "QEc", "QE", true);
                 Bool(Combo, "Rc", "R", true);
+                Separator(Combo,"Rbc","cast R target:");
+                foreach (var hero in HeroManager.Enemies)
+                {
+                    Bool(Combo, hero.ChampionName + "c", hero.ChampionName, true);
+                }
                 MainMenu.AddSubMenu(Combo);
             }
             Menu Harass = new Menu("Harass", "Harass");
@@ -294,7 +299,10 @@ namespace BadaoSeries.Plugin
             CustomDamageIndicator.Enabled = drawhp;
             Obj_AI_Base.OnLevelUp += Obj_AI_Base_OnLevelUp;
         }
-
+        private static bool castRtarget (Obj_AI_Hero target)
+        {
+            return MainMenu.Item(target.ChampionName + "c").GetValue<bool>();
+        }
         private static bool comboq { get { return MainMenu.Item("Qc").GetValue<bool>(); } }
         private static bool combow { get { return MainMenu.Item("Wc").GetValue<bool>(); } }
         private static bool comboe { get { return MainMenu.Item("Ec").GetValue<bool>(); } }
@@ -433,8 +441,8 @@ namespace BadaoSeries.Plugin
                         HeroManager.Enemies.Where(
                             x => x.IsValidTarget(Q.Range) && !x.IsZombie && Qdamage(x) > x.Health))
                 {
-                    Q.Cast(target);
-                    spellcount = Utils.GameTimeTickCount;
+                    if (Q.Cast(target) == Spell.CastStates.SuccessfullyCasted)
+                        spellcount = Utils.GameTimeTickCount;
                 }
             }
             // killstealW
@@ -465,8 +473,8 @@ namespace BadaoSeries.Plugin
                         if (Wobject() != null && Utils.GameTimeTickCount >= w1cast + 500)
                         {
                             W.UpdateSourcePosition(Wobject().Position);
-                            W.Cast(target);
-                            spellcount = Utils.GameTimeTickCount;
+                            if (W.Cast(target) == Spell.CastStates.SuccessfullyCasted)
+                                spellcount = Utils.GameTimeTickCount;
                         }
                     }
                 }
@@ -491,29 +499,31 @@ namespace BadaoSeries.Plugin
                         HeroManager.Enemies.Where(
                             x => x.IsValidTarget(Q.Range) && !x.IsZombie && Qdamage(x) + Wdamage(x) > x.Health))
                 {
-                    Q.Cast(target);
-                    if (W.Instance.Name == "SyndraW")
+                    if (Q.Cast(target) == Spell.CastStates.SuccessfullyCasted)
                     {
-                        if (PickableOrb != null || PickableMinion != null)
+                        if (W.Instance.Name == "SyndraW")
                         {
-                            Utility.DelayAction.Add(250, () => W.Cast(PickableOrb != null
-                                ? PickableOrb.Position.To2D()
-                                : PickableMinion.Position.To2D()));
+                            if (PickableOrb != null || PickableMinion != null)
+                            {
+                                Utility.DelayAction.Add(250, () => W.Cast(PickableOrb != null
+                                    ? PickableOrb.Position.To2D()
+                                    : PickableMinion.Position.To2D()));
+                            }
+                            Utility.DelayAction.Add(750, () =>
+                            {
+                                W.UpdateSourcePosition(Wobject().Position);
+                                W.Cast(target);
+                            });
+                            spellcount = Utils.GameTimeTickCount + 750;
                         }
-                        Utility.DelayAction.Add(750, () =>
+                        else
                         {
-                            W.UpdateSourcePosition(Wobject().Position);
-                            W.Cast(target);
-                        });
-                        spellcount = Utils.GameTimeTickCount + 750;
-                    }
-                    else
-                    {
-                        if (Wobject() != null && Utils.GameTimeTickCount >= w1cast + 500)
-                        {
-                            W.UpdateSourcePosition(Wobject().Position);
-                            Utility.DelayAction.Add(250, () => W.Cast(target));
-                            spellcount = Utils.GameTimeTickCount + 250;
+                            if (Wobject() != null && Utils.GameTimeTickCount >= w1cast + 500)
+                            {
+                                W.UpdateSourcePosition(Wobject().Position);
+                                Utility.DelayAction.Add(250, () => W.Cast(target));
+                                spellcount = Utils.GameTimeTickCount + 250;
+                            }
                         }
                     }
                 }
@@ -524,10 +534,10 @@ namespace BadaoSeries.Plugin
                 foreach (
                     var target in
                         HeroManager.Enemies.Where(
-                            x => x.IsValidTarget(W.Range) && !x.IsZombie && Rdamage(x) * SyndraOrb.Count > x.Health))
+                            x => castRtarget(x) && x.IsValidTarget(W.Range) && !x.IsZombie && Rdamage(x) * SyndraOrb.Count > x.Health))
                 {
-                    R.Cast(target);
-                    spellcount = Utils.GameTimeTickCount;
+                    if (R.Cast(target) == Spell.CastStates.SuccessfullyCasted)
+                        spellcount = Utils.GameTimeTickCount;
                 }
             }
 
@@ -542,8 +552,8 @@ namespace BadaoSeries.Plugin
                     var target = TargetSelector.GetTarget(Q.Range, TargetSelector.DamageType.Magical);
                     if (target.IsValidTarget() && !target.IsZombie)
                     {
-                        Q.Cast(target);
-                        ecount = Utils.GameTimeTickCount + 100;
+                        if (Q.Cast(target) == Spell.CastStates.SuccessfullyCasted)
+                            ecount = Utils.GameTimeTickCount + 100;
                     }
                 }
                 if (E.IsReady() && StunAbleOrb.Any() && Utils.GameTimeTickCount >= wcount + 500 && harassE)
@@ -554,8 +564,20 @@ namespace BadaoSeries.Plugin
                         : StunAbleOrb.First().Value;
                     if (Orb != null)
                     {
-                        E.Cast(Orb.Position.To2D());
-                        ecount = Utils.GameTimeTickCount + 100;
+                        if (E.Cast(Orb.Position.To2D()))
+                            ecount = Utils.GameTimeTickCount + 100;
+                    }
+                }
+                if (W.Instance.Name != "SyndraW" && harassw)
+                {
+                    var target = TargetSelector.GetTarget(W.Range, TargetSelector.DamageType.Magical);
+                    if (target.IsValidTarget() && !target.IsZombie)
+                    {
+                        if (Wobject() != null && Utils.GameTimeTickCount >= w1cast + 250)
+                        {
+                            W.UpdateSourcePosition(Wobject().Position, Player.Position);
+                            W.Cast(target);
+                        }
                     }
                 }
                 if (W.IsReady() && Utils.GameTimeTickCount >= ecount + 500 && harassw)
@@ -565,7 +587,7 @@ namespace BadaoSeries.Plugin
                     {
                         if (W.Instance.Name != "SyndraW")
                         {
-                            if (Wobject() != null && Utils.GameTimeTickCount >= w1cast + 500)
+                            if (Wobject() != null && Utils.GameTimeTickCount >= w1cast + 250)
                             {
                                 W.UpdateSourcePosition(Wobject().Position, Player.Position);
                                 W.Cast(target);
@@ -576,11 +598,13 @@ namespace BadaoSeries.Plugin
 
                             if (PickableOrb != null || PickableMinion != null)
                             {
-                                W.Cast(PickableOrb != null
+                                if (W.Cast(PickableOrb != null
                                     ? PickableOrb.Position.To2D()
-                                    : PickableMinion.Position.To2D());
-                                wcount = Utils.GameTimeTickCount + 100;
-                                ecount = Utils.GameTimeTickCount + 100;
+                                    : PickableMinion.Position.To2D()))
+                                {
+                                    wcount = Utils.GameTimeTickCount + 100;
+                                    ecount = Utils.GameTimeTickCount + 100;
+                                }
                             }
                         }
                     }
@@ -597,7 +621,7 @@ namespace BadaoSeries.Plugin
                     var target in
                         HeroManager.Enemies.Where(
                             x =>
-                                x.IsValidTarget(W.Range) && !x.IsZombie && SyndraHalfDamage(x) < x.Health &&
+                                castRtarget(x) && x.IsValidTarget(W.Range) && !x.IsZombie && SyndraHalfDamage(x) < x.Health &&
                                 SyndraDamage(x) > x.Health))
                 {
                     R.Cast(target);
@@ -613,7 +637,7 @@ namespace BadaoSeries.Plugin
                     if (R.IsReady() && E.IsReady() && combor && comboe)
                     {
                         var target =
-                            HeroManager.Enemies.Where(x => x.IsValidTarget() && !x.IsZombie)
+                            HeroManager.Enemies.Where(x => castRtarget(x) && x.IsValidTarget() && !x.IsZombie)
                                 .OrderByDescending(x => x.Distance(Player.Position))
                                 .LastOrDefault();
                         if (target.IsValidTarget(R.Range) && !target.IsZombie)
@@ -623,8 +647,8 @@ namespace BadaoSeries.Plugin
                             {
                                 R.Cast(target);
                                 Q.Cast(target);
-                                Utility.DelayAction.Add(1000, () => E.Cast(target.Position));
-                                ecount = Utils.GameTimeTickCount + 1010;
+                                Utility.DelayAction.Add(500, () => E.Cast(target.Position));
+                                ecount = Utils.GameTimeTickCount + 510;
                                 return;
                             }
                         }
@@ -636,8 +660,13 @@ namespace BadaoSeries.Plugin
                         var target = TargetSelector.GetTarget(Q.Range, TargetSelector.DamageType.Magical);
                         if (target.IsValidTarget() && !target.IsZombie)
                         {
-                            Q.Cast(target);
-                            ecount = Utils.GameTimeTickCount + 100;
+                            var x = Q.GetPrediction(target).CastPosition;
+                            if (Q.Cast(target) == Spell.CastStates.SuccessfullyCasted && E.IsReady()
+                                && x.Distance(Player.Position) <= E.Range - 100 && comboe)
+                            {
+                                Utility.DelayAction.Add(250, () => E.Cast(x));
+                                ecount = Utils.GameTimeTickCount + 350;
+                            }
                         }
                     }
                     if (E.IsReady() && StunAbleOrb.Any() && Utils.GameTimeTickCount >= wcount + 500 && comboe)
@@ -648,8 +677,20 @@ namespace BadaoSeries.Plugin
                             : StunAbleOrb.First().Value;
                         if (Orb != null)
                         {
-                            E.Cast(Orb.Position.To2D());
-                            ecount = Utils.GameTimeTickCount + 100;
+                            if(E.Cast(Orb.Position.To2D()))
+                                ecount = Utils.GameTimeTickCount + 100;
+                        }
+                    }
+                    if (W.Instance.Name != "SyndraW" && combow)
+                    {
+                        var target = TargetSelector.GetTarget(W.Range, TargetSelector.DamageType.Magical);
+                        if (target.IsValidTarget() && !target.IsZombie)
+                        {
+                            if (Wobject() != null && Utils.GameTimeTickCount >= w1cast + 250)
+                            {
+                                W.UpdateSourcePosition(Wobject().Position, Player.Position);
+                                W.Cast(target);
+                            }
                         }
                     }
                     if (W.IsReady() && Utils.GameTimeTickCount >= ecount + 500 && combow)
@@ -659,7 +700,7 @@ namespace BadaoSeries.Plugin
                         {
                             if (W.Instance.Name != "SyndraW")
                             {
-                                if (Wobject() != null && Utils.GameTimeTickCount >= w1cast + 500)
+                                if (Wobject() != null && Utils.GameTimeTickCount >= w1cast + 250)
                                 {
                                     W.UpdateSourcePosition(Wobject().Position, Player.Position);
                                     W.Cast(target);
@@ -692,16 +733,18 @@ namespace BadaoSeries.Plugin
                             var pos = PositionEQtarget(target);
                             if (pos.IsValid())
                             {
-                                Q.Cast(pos);
-                                if (pos.Distance(Player.Position.To2D()) < E.Range - 200)
+                                if (Q.Cast(pos))
                                 {
-                                    Utility.DelayAction.Add(250, () => E.Cast(pos));
-                                    ecount = Utils.GameTimeTickCount + 250;
-                                }
-                                else
-                                {
-                                    Utility.DelayAction.Add(150, () => E.Cast(pos));
-                                    ecount = Utils.GameTimeTickCount + 150;
+                                    if (pos.Distance(Player.Position.To2D()) < E.Range - 200)
+                                    {
+                                        Utility.DelayAction.Add(250, () => E.Cast(pos));
+                                        ecount = Utils.GameTimeTickCount + 350;
+                                    }
+                                    else
+                                    {
+                                        Utility.DelayAction.Add(150, () => E.Cast(pos));
+                                        ecount = Utils.GameTimeTickCount + 250;
+                                    }
                                 }
                             }
                         }
