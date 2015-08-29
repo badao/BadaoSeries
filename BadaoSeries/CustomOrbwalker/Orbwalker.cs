@@ -74,6 +74,7 @@ namespace BadaoSeries.CustomOrbwalker
         // Champs whose auto attacks can't be cancelled
         private static readonly string[] NoCancelChamps = { "Kalista" };
         public static int LastAATick;
+        public static int LastAACommandTick;
         public static bool Attack = true;
         public static bool DisableNextAttack;
         public static bool Move = true;
@@ -232,7 +233,8 @@ namespace BadaoSeries.CustomOrbwalker
         public static bool CanAttack()
         {
             return Utils.GameTimeTickCount + Game.Ping / 2 + 25 >= LastAATick + Player.AttackDelay * 1000 && Attack
-                && !DisableBuff.Where(x => Player.HasBuffOfType(x)).Any() && !Player.IsDashing();
+                && !DisableBuff.Where(x => Player.HasBuffOfType(x)).Any() && !Player.IsDashing()
+                && (Utils.GameTimeTickCount + Game.Ping/2 >=  LastAACommandTick + Player.AttackCastDelay*900);
         }
 
         /// <summary>
@@ -250,7 +252,9 @@ namespace BadaoSeries.CustomOrbwalker
                 return true;
             }
 
-            return NoCancelChamps.Contains(Player.ChampionName) || (Utils.GameTimeTickCount + Game.Ping / 2 >= LastAATick + Player.AttackCastDelay * 1000 + extraWindup);
+            return NoCancelChamps.Contains(Player.ChampionName) || 
+                ((Utils.GameTimeTickCount + Game.Ping / 2 >= LastAATick + Player.AttackCastDelay * 1000 + extraWindup)
+                && (Utils.GameTimeTickCount + Game.Ping/2 >=  LastAACommandTick + Player.AttackCastDelay*900 + extraWindup));
         }
 
         public static void SetMovementDelay(int delay)
@@ -341,7 +345,8 @@ namespace BadaoSeries.CustomOrbwalker
                     {
                         if (!NoCancelChamps.Contains(Player.ChampionName))
                         {
-                            LastAATick = Utils.GameTimeTickCount + Game.Ping + 100 - (int)(ObjectManager.Player.AttackCastDelay * 1000f);
+                            LastAACommandTick = Utils.GameTimeTickCount - 4;
+                            //LastAATick = Utils.GameTimeTickCount + Game.Ping + 100 - (int)(ObjectManager.Player.AttackCastDelay * 1000f);
                             _missileLaunched = false;
                         }
                         Player.IssueOrder(GameObjectOrder.AttackUnit, target);
@@ -801,7 +806,7 @@ namespace BadaoSeries.CustomOrbwalker
                     Orbwalk(
                         target, (_orbwalkingPoint.To2D().IsValid()) ? _orbwalkingPoint : Game.CursorPos,
                         _config.Item("ExtraWindup").GetValue<Slider>().Value,
-                        _config.Item("HoldPosRadius").GetValue<Slider>().Value);
+                        _config.Item("HoldPosRadius").GetValue<Slider>().Value,false,false);
                 }
                 catch (Exception e)
                 {

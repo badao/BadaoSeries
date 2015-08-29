@@ -55,9 +55,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CustomOrbwalker\BadaoPrediction.cs" />
     <Compile Include="CustomOrbwalker\FakeClicks.cs" />
     <Compile Include="CustomOrbwalker\Helper.cs" />
     <Compile Include="CustomOrbwalker\Orbwalker.cs" />
+    <Compile Include="Plugin\Ahri.cs" />
     <Compile Include="Plugin\Syndra.cs" />
     <Compile Include="Plugin\TwistedFate.cs" />
     <Compile Include="Program.cs" />
